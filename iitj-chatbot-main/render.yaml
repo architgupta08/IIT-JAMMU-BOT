@@ -1,0 +1,52 @@
+# render.yaml — Deploy IIT Jammu Chatbot to Render.com (free tier)
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Setup:
+#  1. Push this repo to GitHub
+#  2. Go to https://dashboard.render.com/blueprints
+#  3. Connect your repo → Render auto-detects this file
+#  4. Add environment variables (GEMINI_API_KEY etc.) in dashboard
+
+services:
+  # ─── Backend (FastAPI) ────────────────────────────────────
+  - type: web
+    name: iitj-chatbot-backend
+    runtime: python
+    region: singapore # closest to India
+    plan: free # 512MB RAM, sleeps after 15 min inactivity
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # fill in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: INDEX_FILE
+        value: ../data/processed/iitj_index.json
+      - key: CORS_ORIGINS
+        value: https://iitj-chatbot-frontend.onrender.com
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "20"
+    disk:
+      name: iitj-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+
+  # ─── Frontend (React/Vite → Static) ──────────────────────
+  - type: web
+    name: iitj-chatbot-frontend
+    runtime: static
+    region: singapore
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://iitj-chatbot-backend.onrender.com
+    routes:
+      # SPA fallback
+      - type: rewrite
+        source: /*
+        destination: /index.html

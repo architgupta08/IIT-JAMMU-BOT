@@ -1,0 +1,55 @@
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--iitj-navy) 0%, #0a4a8a 100%);
+  border: none;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,51,102,0.5), 0 0 0 0 rgba(197,151,42,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: pulse 3s infinite;
+}
+.fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(0,51,102,0.6);
+  animation: none;
+}
+.fabOpen {
+  background: #dc2626;
+  animation: none;
+  transform: rotate(90deg);
+}
+.fabOpen:hover { transform: rotate(90deg) scale(1.08); }
+
+.badge {
+  position: absolute; top: -4px; right: -4px;
+  background: var(--iitj-gold);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 10px; font-weight: 700;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Window wrapper */
+.windowWrap {
+  position: fixed;
+  bottom: 100px; right: 28px;
+  width: 380px;
+  z-index: 9998;
+}
+.windowOpen { animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+
+@media (max-width: 440px) {
+  .windowWrap {
+    bottom: 0; right: 0; left: 0; width: 100%;
+    border-radius: 0;
+  }
+  .fab { bottom: 16px; right: 16px; }
+}

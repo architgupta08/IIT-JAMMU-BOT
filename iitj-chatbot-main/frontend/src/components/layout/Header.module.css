@@ -1,0 +1,120 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--iitj-navy);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+.header.scrolled { box-shadow: var(--shadow-lg); }
+
+/* Top bar */
+.topBar {
+  background: var(--iitj-navy-dark);
+  border-bottom: 1px solid rgba(197,151,42,0.3);
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.7);
+}
+.topBarInner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 5px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.topLinks { display: flex; align-items: center; gap: 10px; }
+.topLinks a { color: var(--iitj-gold-light); font-family: var(--font-heading); font-size: 11px; }
+.divider { opacity: 0.4; }
+
+/* Main header */
+.mainHeader {
+  max-width: 1180px; margin: 0 auto;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 14px; flex: 1; }
+.logoBlock svg { flex-shrink: 0; }
+.brandText {
+  display: flex; flex-direction: column;
+  text-decoration: none !important;
+}
+.brandShort { display: none; }
+.brandFull {
+  font-family: var(--font-heading);
+  font-size: 18px; font-weight: 700;
+  color: var(--iitj-white);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+.brandTagline {
+  font-family: var(--font-heading);
+  font-size: 11px; color: var(--iitj-gold);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+.demoBadge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(197,151,42,0.15);
+  border: 1px solid var(--iitj-gold);
+  color: var(--iitj-gold);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 20px;
+  white-space: nowrap;
+}
+
+.menuToggle {
+  display: none;
+  background: none; border: none;
+  color: white; font-size: 22px;
+  cursor: pointer; padding: 4px;
+}
+
+/* Navigation */
+.nav {
+  background: rgba(0,0,0,0.25);
+  border-top: 1px solid rgba(197,151,42,0.25);
+}
+.navInner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 0 20px;
+  display: flex; gap: 2px;
+}
+.navLink {
+  font-family: var(--font-heading);
+  font-size: 13.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255,255,255,0.8);
+  padding: 10px 14px;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  transition: all var(--transition);
+}
+.navLink:hover { color: var(--iitj-gold); background: rgba(255,255,255,0.05); text-decoration: none; }
+.navLink.active { color: var(--iitj-gold); border-bottom-color: var(--iitj-gold); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .brandFull { font-size: 15px; }
+  .navLink { font-size: 12px; padding: 10px 10px; }
+}
+@media (max-width: 680px) {
+  .brandFull { display: none; }
+  .brandShort {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 20px; font-weight: 700;
+    color: var(--iitj-white);
+  }
+  .menuToggle { display: block; }
+  .demoBadge { display: none; }
+  .nav { display: none; }
+  .nav.navOpen {
+    display: block;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--iitj-navy);
+    z-index: 999;
+    padding-top: 80px;
+  }
+  .navInner { flex-direction: column; padding: 20px; }
+  .navLink { font-size: 18px; padding: 14px 10px; }
+}

@@ -1,0 +1,47 @@
+.footer {
+  background: var(--iitj-navy-dark);
+  color: rgba(255,255,255,0.75);
+  font-size: 14px;
+  margin-top: auto;
+}
+.top {
+  max-width: 1180px; margin: 0 auto;
+  padding: 50px 20px 30px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+}
+.col h3 {
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--iitj-gold);
+  margin-bottom: 16px;
+}
+.col p { line-height: 1.8; font-size: 13px; color: rgba(255,255,255,0.65); }
+.col ul { list-style: none; }
+.col ul li { margin-bottom: 8px; }
+.col ul li a {
+  color: rgba(255,255,255,0.65); font-size: 13px;
+  transition: color var(--transition);
+}
+.col ul li a:hover { color: var(--iitj-gold); text-decoration: none; }
+
+.bottom {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  max-width: 1180px; margin: 0 auto;
+  padding: 18px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px;
+  font-size: 12px; color: rgba(255,255,255,0.5);
+}
+.note { font-style: italic; }
+.credit { color: var(--iitj-gold); font-family: var(--font-heading); font-weight: 600; }
+
+@media (max-width: 800px) {
+  .top { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .top { grid-template-columns: 1fr; gap: 28px; }
+  .bottom { flex-direction: column; text-align: center; }
+}

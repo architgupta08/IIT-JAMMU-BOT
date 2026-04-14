@@ -1,0 +1,197 @@
+.hero {
+  position: relative;
+  min-height: 80vh;
+  display: flex; align-items: center;
+  overflow: hidden;
+}
+.heroBg {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(135deg, #001f42 0%, #003366 50%, #004080 100%);
+}
+.heroOverlay {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 60% at 70% 50%, rgba(197,151,42,0.12) 0%, transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  z-index: 1;
+}
+.heroContent {
+  position: relative; z-index: 2;
+  max-width: 1180px; margin: 0 auto;
+  padding: 80px 20px;
+  animation: fadeInUp 0.8s ease;
+}
+.heroTag {
+  display: inline-block;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--iitj-gold);
+  border: 1px solid rgba(197,151,42,0.4);
+  padding: 4px 14px; border-radius: 20px;
+  margin-bottom: 20px;
+}
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(36px, 6vw, 62px);
+  font-weight: 700;
+  color: white;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+.heroGold { color: var(--iitj-gold); }
+.heroSub {
+  font-size: 17px;
+  color: rgba(255,255,255,0.75);
+  max-width: 560px;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+.heroCta { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 32px; }
+.btnPrimary {
+  background: var(--iitj-gold);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 13px 28px; border-radius: var(--radius);
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all var(--transition);
+  display: inline-block;
+}
+.btnPrimary:hover { background: var(--iitj-gold-light); transform: translateY(-2px); color: white; text-decoration: none; }
+.btnSecondary {
+  background: transparent;
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 13px 28px; border-radius: var(--radius);
+  text-decoration: none;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  transition: all var(--transition);
+  display: inline-block;
+}
+.btnSecondary:hover { border-color: white; background: rgba(255,255,255,0.08); color: white; text-decoration: none; }
+.heroAI {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: rgba(255,255,255,0.65);
+}
+.aiPulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+  animation: pulse 2s infinite;
+}
+
+/* Stats */
+.statsBar { background: var(--iitj-navy); padding: 24px 0; }
+.statsGrid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+.statItem {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+.statItem:last-child { border-right: none; }
+.statNum { font-family: var(--font-heading); font-size: 32px; font-weight: 700; color: var(--iitj-gold); }
+.statLabel { font-family: var(--font-heading); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.65); margin-top: 4px; }
+
+/* Programs */
+.sectionHead { text-align: center; margin-bottom: 40px; }
+.sectionHead h2 { font-size: 34px; font-weight: 700; margin: 8px 0 10px; }
+.sectionHead p { color: var(--iitj-gray); }
+.programsGrid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+.programCard {
+  background: white; border-radius: var(--radius-lg);
+  padding: 28px 22px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--iitj-light-gray);
+  text-decoration: none; color: var(--iitj-text);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  transition: all 0.25s ease;
+}
+.programCard:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); border-color: var(--iitj-gold); text-decoration: none; }
+.programIcon { font-size: 36px; }
+.programCard h3 { font-size: 22px; font-weight: 700; color: var(--iitj-navy); }
+.programCard p { font-size: 13px; color: var(--iitj-gray); }
+.arrow { color: var(--iitj-gold); font-size: 18px; margin-top: auto; }
+
+/* About strip */
+.aboutStrip { background: white; padding: 70px 0; }
+.aboutGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.aboutText h2 { font-size: 36px; font-weight: 700; margin: 12px 0 18px; }
+.aboutText p { color: #475569; margin-bottom: 14px; line-height: 1.75; }
+.aboutVisual { display: flex; justify-content: center; }
+.campusCard {
+  background: var(--iitj-offwhite);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  width: 100%; max-width: 400px;
+  box-shadow: var(--shadow-md);
+}
+.campusImg {
+  height: 200px;
+  background: linear-gradient(135deg, #003366 0%, #0a4a8a 50%, #1a6fc4 100%);
+  position: relative;
+}
+.campusImg::after {
+  content: '🏛️ IIT Jammu Campus';
+  position: absolute; bottom: 16px; left: 16px;
+  color: rgba(255,255,255,0.8);
+  font-family: var(--font-heading); font-size: 14px;
+}
+.campusInfo {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px 20px;
+  font-size: 13px; color: #64748b;
+}
+.campusInfo strong { color: var(--iitj-navy); font-family: var(--font-heading); font-size: 15px; }
+
+/* News */
+.news { background: var(--iitj-offwhite); }
+.newsList { display: flex; flex-direction: column; gap: 0; }
+.newsItem {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--iitj-light-gray);
+  animation: fadeInUp 0.4s ease;
+}
+.newsDate { font-family: var(--font-heading); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--iitj-gold); width: 80px; flex-shrink: 0; }
+.newsDot { width: 6px; height: 6px; border-radius: 50%; background: var(--iitj-navy); flex-shrink: 0; }
+.newsTitle { font-size: 14px; color: var(--iitj-text); }
+
+/* AI CTA */
+.aiCta { background: var(--iitj-navy); padding: 50px 0; }
+.aiCtaInner {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 30px; flex-wrap: wrap;
+}
+.aiCta h2 { font-size: 28px; color: white; margin-bottom: 8px; }
+.aiCta p { color: rgba(255,255,255,0.7); }
+.btnGold {
+  background: var(--iitj-gold);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 14px 30px; border-radius: var(--radius);
+  border: none; cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+.btnGold:hover { background: var(--iitj-gold-light); transform: translateY(-2px); }
+
+@media (max-width: 900px) {
+  .statsGrid { grid-template-columns: repeat(2,1fr); }
+  .programsGrid { grid-template-columns: repeat(2,1fr); }
+  .aboutGrid { grid-template-columns: 1fr; gap: 30px; }
+}
+@media (max-width: 600px) {
+  .programsGrid { grid-template-columns: 1fr 1fr; }
+  .aiCtaInner { flex-direction: column; text-align: center; }
+}

@@ -1,0 +1,121 @@
+/* =============================================
+   IIT Jammu Clone — Global Styles
+   Primary: Deep Navy #003366 + Gold #C5972A
+   ============================================= */
+:root {
+  --iitj-navy:    #003366;
+  --iitj-navy-dark: #001f42;
+  --iitj-gold:    #C5972A;
+  --iitj-gold-light: #e0b84a;
+  --iitj-red:     #cc2200;
+  --iitj-white:   #ffffff;
+  --iitj-offwhite: #f5f7fa;
+  --iitj-gray:    #64748b;
+  --iitj-light-gray: #e2e8f0;
+  --iitj-text:    #1e293b;
+
+  /* Chat colors */
+  --chat-bg:      #ffffff;
+  --chat-user:    #003366;
+  --chat-bot:     #f0f4f8;
+  --chat-accent:  #C5972A;
+
+  --font-heading: 'Rajdhani', sans-serif;
+  --font-body:    'Source Serif 4', Georgia, serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.18);
+  --radius:     8px;
+  --radius-lg:  16px;
+  --transition: 0.2s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--iitj-text);
+  background: var(--iitj-offwhite);
+  line-height: 1.65;
+}
+
+a { color: var(--iitj-navy); text-decoration: none; }
+a:hover { color: var(--iitj-gold); text-decoration: underline; }
+
+img { max-width: 100%; height: auto; display: block; }
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+  color: var(--iitj-navy);
+  line-height: 1.25;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+
+/* Utility */
+.container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+.section-pad { padding: 60px 0; }
+.text-gold { color: var(--iitj-gold); }
+.text-navy { color: var(--iitj-navy); }
+.badge {
+  display: inline-block;
+  background: var(--iitj-gold);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes typingDot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes botBubbleIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes userBubbleIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
