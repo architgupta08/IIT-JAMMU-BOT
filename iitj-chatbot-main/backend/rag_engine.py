@@ -30,6 +30,7 @@ import os
 import re
 import json
 import logging
+from collections import OrderedDict
 from typing import List, Optional, Dict, Any, Tuple
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -70,8 +71,9 @@ def _resolve(path: str) -> str:
     return path
 
 INDEX_FILE        = _resolve(os.getenv("INDEX_FILE", "data/processed/iitj_index.json"))
-TOP_K_NODES       = int(os.getenv("TOP_K_NODES", "6"))        # nodes sent to Gemini
-MAX_TEXT_PER_NODE = int(os.getenv("MAX_TEXT_PER_NODE", "800")) # chars per node in context
+TOP_K_NODES       = int(os.getenv("TOP_K_NODES", "4"))        # nodes sent to LLM
+MAX_TEXT_PER_NODE = int(os.getenv("MAX_TEXT_PER_NODE", "500")) # chars per node in context
+CACHE_MAX_SIZE    = int(os.getenv("CACHE_MAX_SIZE", "100"))    # max cached query responses
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -276,6 +278,9 @@ class VectorlessRAGEngine:
     def __init__(self, tree: IITJKnowledgeTree, gemini_client):
         self.tree   = tree
         self.gemini = gemini_client
+        # OrderedDict preserves insertion order for reliable FIFO eviction.
+        # Safe for asyncio (single-threaded event loop); not multi-process safe.
+        self._cache: OrderedDict[str, RAGResult] = OrderedDict()
 
     def _build_context(self, nodes: List[FlatNode]) -> str:
         parts = []
@@ -327,11 +332,18 @@ class VectorlessRAGEngine:
                 detected_language=target_language,
             )
 
+        # ── Cache lookup ──────────────────────────────────────────
+        # Use null byte as separator — cannot appear in language codes or queries
+        cache_key = f"{target_language}\x00{query.strip().lower()}"
+        if cache_key in self._cache:
+            logger.debug(f"Cache hit for query: {query[:60]}")
+            return self._cache[cache_key]
+
         # ── Step 1: Keyword retrieval (no API) ────────────────────
         top_nodes = self.tree.search(query, top_k=TOP_K_NODES)
         context   = self._build_context(top_nodes)
 
-        # ── Step 2: Single Gemini call ────────────────────────────
+        # ── Step 2: Single LLM call ───────────────────────────────
         try:
             answer_text = await self.gemini.formulate_answer(
                 query=query,
@@ -348,12 +360,20 @@ class VectorlessRAGEngine:
             hit_score = self.tree.search(query, top_k=1)
             confidence = min(0.95, 0.5 + 0.05 * len(hit_score))
 
-        return RAGResult(
+        result = RAGResult(
             answer=answer_text,
             sources=top_nodes[:3],
             confidence=round(confidence, 2),
             detected_language=target_language,
         )
+
+        # ── Store in cache (evict oldest entry when full) ─────────
+        if len(self._cache) >= CACHE_MAX_SIZE:
+            oldest_key = next(iter(self._cache))
+            del self._cache[oldest_key]
+        self._cache[cache_key] = result
+
+        return result
 
 
 # ══════════════════════════════════════════════════════════════════

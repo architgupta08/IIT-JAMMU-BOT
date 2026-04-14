@@ -1,14 +1,21 @@
 """
-gemini_client.py  —  Local LLM client using Ollama + Llama 3.2 3B
+gemini_client.py  —  Local LLM client using Ollama + Mistral 7B
 ==================================================================
 Drop-in replacement — same class/function names so nothing else changes.
 
-SETUP:
+SETUP (local Ollama — no API key needed):
   1. Install Ollama: https://ollama.com/download/windows
-  2. Pull model:     ollama pull llama3.2:3b
-  3. Set in .env:    LLM_MODEL=llama3.2:3b
+  2. Pull model:     ollama pull mistral:7b
+  3. Set in .env:    LLM_MODEL=mistral:7b
 
-No API key. No rate limits. No internet. Runs on your RTX 2050.
+Alternative models (set LLM_MODEL in .env):
+  - neural-chat:7b   (fast, good instruction-following)
+  - llama3.1:8b      (larger, more capable)
+
+For Google Gemini Flash API (requires google-genai package):
+  See gemini_api_client.py — this file uses Ollama only.
+
+No API key needed for local Ollama. Runs on your RTX 2050.
 """
 import os
 import re
@@ -23,9 +30,9 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-LLM_MODEL       = os.getenv("LLM_MODEL", "llama3.2:3b")
+LLM_MODEL       = os.getenv("LLM_MODEL", "mistral:7b")
 LLM_TIMEOUT     = int(os.getenv("LLM_TIMEOUT", "60"))
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
 
 # ── Coding detection signals ────────────────────────────────────
 CODE_SIGNALS = [
@@ -166,11 +173,12 @@ class GeminiClient:
         system = (
             "You are the official AI Assistant for IIT Jammu "
             "(Indian Institute of Technology Jammu, India). "
-            "You are helpful, accurate, and friendly. "
+            "You are helpful, accurate, and trustworthy. "
             "Answer ONLY questions related to IIT Jammu. "
             "Always include specific numbers, dates, and contacts from the context. "
-            "If the context does not have the answer, say so and suggest "
-            "https://www.iitjammu.ac.in "
+            "IMPORTANT: If the provided CONTEXT does not contain the answer, "
+            "you MUST say so clearly — do NOT invent or guess any information. "
+            "Suggest https://www.iitjammu.ac.in for details not in your knowledge base. "
             + topic_hint
             + lang_instr
         )
@@ -201,8 +209,10 @@ class GeminiClient:
             f"CRITICAL RULES:\n"
             f"1. Use ONLY information from the CONTEXT above — never use outside knowledge\n"
             f"2. Copy numbers EXACTLY as they appear in context — NEVER calculate or estimate fees\n"
-            f"3. The answer IS in the context — find it and report it word for word\n"
-            f"4. NEVER write 'not listed', 'not mentioned', 'not found', 'not explicitly'\n"
+            f"3. If the answer is NOT present in the CONTEXT, respond with:\n"
+            f"   'I don't have that specific information in my knowledge base. "
+            f"Please check https://www.iitjammu.ac.in for accurate details.'\n"
+            f"4. NEVER fabricate data, dates, figures, or names not found in the CONTEXT\n"
             f"5. Use bullet points for lists (fees, branches, courses)\n"
             f"6. Be concise but complete"
         )
