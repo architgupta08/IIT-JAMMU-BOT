@@ -8,3 +8,4 @@ slowapi==0.1.9
 python-multipart==0.0.9
 aiofiles==24.1.0
 tiktoken==0.7.0
+playwright>=1.40.0

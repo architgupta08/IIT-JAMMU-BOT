@@ -419,3 +419,13 @@ def get_rag_engine() -> VectorlessRAGEngine:
         from gemini_client import get_gemini_client
         _engine = VectorlessRAGEngine(get_knowledge_tree(), get_gemini_client())
     return _engine
+
+
+def reload_knowledge_base() -> None:
+    """Reset cached singletons so the next call to get_knowledge_tree() / get_rag_engine()
+    re-reads the index file from disk.  Call this after the indexer has written a fresh
+    iitj_index.json.
+    """
+    global _tree, _engine
+    _tree = None
+    _engine = None

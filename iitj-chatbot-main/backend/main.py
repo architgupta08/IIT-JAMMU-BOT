@@ -1,12 +1,15 @@
 """
 main.py — FastAPI Backend for IIT Jammu AI Assistant (Fixed)
 """
+import asyncio
 import os
 import logging
+import sys
 import time
 import uuid
 import traceback
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +23,7 @@ from models import (
     ChatRequest, ChatResponse, HealthResponse,
     IndexStatsResponse, SuggestedQuestionsResponse, SourceNode
 )
-from rag_engine import get_rag_engine, get_knowledge_tree
+from rag_engine import get_rag_engine, get_knowledge_tree, reload_knowledge_base
 from language_handler import LanguageContext
 
 load_dotenv()
@@ -47,9 +50,65 @@ INDEX_FILE_RESOLVED = _resolve_index_path()
 limiter = Limiter(key_func=get_remote_address)
 
 
+async def _auto_update_knowledge_base() -> None:
+    """
+    Background task: run the web crawler then rebuild the knowledge index.
+    Runs once on startup. Failures are logged but never crash the backend.
+    """
+    scraper_dir = Path(__file__).resolve().parent.parent / "scraper"
+
+    # ── Step 1: Web crawler ───────────────────────────────────────
+    logger.info("🕷️  Auto-update: starting web crawler (max_pages=500) …")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "crawler_v3.py", "--max", "500",
+            cwd=str(scraper_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        if stdout:
+            for line in stdout.decode(errors="replace").splitlines()[-30:]:
+                logger.info("  [crawler] %s", line)
+        if proc.returncode == 0:
+            logger.info("✅ Auto-update: crawler finished successfully")
+        else:
+            logger.warning("⚠  Auto-update: crawler exited with code %d", proc.returncode)
+    except Exception as exc:
+        logger.warning("⚠  Auto-update: crawler failed — %s", exc)
+
+    # ── Step 2: Rebuild index ─────────────────────────────────────
+    logger.info("🌲 Auto-update: rebuilding knowledge index …")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "indexer.py",
+            cwd=str(scraper_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        if stdout:
+            for line in stdout.decode(errors="replace").splitlines()[-30:]:
+                logger.info("  [indexer] %s", line)
+        if proc.returncode == 0:
+            logger.info("✅ Auto-update: index rebuilt — reloading knowledge tree …")
+            reload_knowledge_base()
+            get_knowledge_tree()
+            get_rag_engine()
+            logger.info("✅ Auto-update complete — knowledge base is up to date")
+        else:
+            logger.warning("⚠  Auto-update: indexer exited with code %d", proc.returncode)
+    except Exception as exc:
+        logger.warning("⚠  Auto-update: indexer failed — %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Starting IIT Jammu AI Assistant …")
+
+    # Kick off crawler + indexer in the background so the backend starts immediately
+    _update_task = asyncio.create_task(_auto_update_knowledge_base())
+
     try:
         tree = get_knowledge_tree()
         logger.info(f"✅ Knowledge tree: {tree.count_nodes()} nodes")
