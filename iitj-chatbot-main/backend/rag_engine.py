@@ -71,8 +71,8 @@ def _resolve(path: str) -> str:
     return path
 
 INDEX_FILE        = _resolve(os.getenv("INDEX_FILE", "data/processed/iitj_index.json"))
-TOP_K_NODES       = int(os.getenv("TOP_K_NODES", "4"))        # nodes sent to LLM
-MAX_TEXT_PER_NODE = int(os.getenv("MAX_TEXT_PER_NODE", "500")) # chars per node in context
+TOP_K_NODES       = int(os.getenv("TOP_K_NODES", "8"))        # nodes sent to LLM (increased from 4)
+MAX_TEXT_PER_NODE = int(os.getenv("MAX_TEXT_PER_NODE", "800")) # chars per node in context (increased from 500)
 CACHE_MAX_SIZE    = int(os.getenv("CACHE_MAX_SIZE", "100"))    # max cached query responses
 
 
@@ -215,19 +215,25 @@ class IITJKnowledgeTree:
 
     def search(self, query: str, top_k: int = TOP_K_NODES) -> List[FlatNode]:
         """
-        Keyword-score every node and return the top_k most relevant.
+        IMPROVED keyword-score every node and return the top_k most relevant.
+        Now includes:
+        - Better substring matching
+        - Category boost for "Academic Programs" section
+        - Flexible scoring that catches all B.Tech programs
 
         Scoring:
-          +3  title contains a query word
-          +2  summary contains a query word
-          +1  text contains a query word
-          ×1.5 boost if the query word appears in multiple fields
+          +5  title contains a query word
+          +3  summary contains a query word
+          +2  text contains a query word
+          +2  if the query word appears in multiple fields (multi-field boost)
+          +3  category boost for Academic Programs nodes when querying about programs
         """
         # Tokenise query — keep numbers and Rs/₹ intact
         stop = {
             "what","is","the","at","in","for","of","a","an","and","or",
             "tell","me","about","how","do","i","can","you","please",
             "give","list","show","are","there","any","which","does",
+            "are","कौन","से","में","प्रोग्राम","है","हैं","क्या",
         }
         q_words = [
             w.lower() for w in re.findall(r"[\w,\.₹]+", query)
@@ -242,26 +248,43 @@ class IITJKnowledgeTree:
             s = node.summary.lower()
             x = node.text.lower()
             sc = 0.0
+            
             for w in q_words:
                 in_title   = w in t
                 in_summary = w in s
                 in_text    = w in x
-                if in_title:   sc += 3
-                if in_summary: sc += 2
-                if in_text:    sc += 1
-                # multi-field boost
-                if (in_title + in_summary + in_text) > 1:
-                    sc += 1.5
+                
+                # Increased scoring weights
+                if in_title:   sc += 5
+                if in_summary: sc += 3
+                if in_text:    sc += 2
+                
+                # Multi-field boost
+                field_count = sum([in_title, in_summary, in_text])
+                if field_count > 1:
+                    sc += 2
+
+            # CATEGORY BOOST: Academic Programs section
+            if "academic" in node.path.lower():
+                program_keywords = ["program", "course", "degree", "b.tech", "btech", "mtech", "m.tech", "phd", "ph.d"]
+                if any(kw in query.lower() for kw in program_keywords):
+                    sc += 3
+
             if sc > 0:
                 scored.append((sc, node))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         results = [n for _, n in scored[:top_k]]
 
-        # If nothing matched, return root-level summary nodes
+        # If nothing matched, prioritize Academic Programs nodes
         if not results:
+            academic_nodes = [n for n in self._flat if "academic" in n.path.lower()]
+            if academic_nodes:
+                return academic_nodes[:top_k]
+            # Fallback: return first top_k nodes
             roots = self._flat[:min(top_k, len(self._flat))]
             return roots
+        
         return results
 
 
