@@ -9,6 +9,7 @@ import time
 import uuid
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -18,6 +19,8 @@ from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 from models import (
     ChatRequest, ChatResponse, HealthResponse,
@@ -49,96 +52,136 @@ INDEX_FILE_RESOLVED = _resolve_index_path()
 # ── Rate limiter ──────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
 
+# ── Scheduler config from environment ────────────────────────────
+SCRAPER_ENABLED: bool = os.getenv("SCRAPER_ENABLED", "true").lower() == "true"
+SCRAPER_INTERVAL_HOURS: float = float(os.getenv("SCRAPER_INTERVAL_HOURS", "2"))
+SCRAPER_MAX_PAGES: int = int(os.getenv("SCRAPER_MAX_PAGES", "500"))
 
-UPDATE_INTERVAL_SECONDS: int = int(os.getenv("KB_UPDATE_INTERVAL_SECONDS", "3600"))  # default: 1 hour
+_SCRAPER_DIR: Path = Path(__file__).resolve().parent.parent / "scraper"
+
+# Max lines of subprocess output to forward to the logger per run
+_MAX_LOG_LINES: int = 30
+
+# ── Scrape history (in-memory) ────────────────────────────────────
+scrape_history: dict = {
+    "last_run": None,
+    "last_status": None,
+    "run_count": 0,
+}
 
 
 async def _auto_update_knowledge_base() -> None:
     """
-    Background task: run the web crawler then rebuild the knowledge index.
-    Runs once on startup. Failures are logged but never crash the backend.
+    Run the web crawler then rebuild the knowledge index, then hot-reload
+    the in-memory knowledge base.  Failures are logged but never crash the backend.
     """
-    scraper_dir = Path(__file__).resolve().parent.parent / "scraper"
+    scrape_history["run_count"] += 1
+    run_num = scrape_history["run_count"]
+    scrape_history["last_run"] = datetime.now(timezone.utc).isoformat()
 
     # ── Step 1: Web crawler ───────────────────────────────────────
-    logger.info("🕷️  Auto-update: starting web crawler (max_pages=500) …")
+    logger.info(
+        "🕷️  [Run #%d] Starting web crawler (max_pages=%d) …",
+        run_num, SCRAPER_MAX_PAGES,
+    )
+    crawler_ok = False
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, "crawler_v3.py", "--max", "500",
-            cwd=str(scraper_dir),
+            sys.executable, "crawler_v3.py", "--max", str(SCRAPER_MAX_PAGES),
+            cwd=str(_SCRAPER_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
         stdout, _ = await proc.communicate()
         if stdout:
-            for line in stdout.decode(errors="replace").splitlines()[-30:]:
+            for line in stdout.decode(errors="replace").splitlines()[-_MAX_LOG_LINES:]:
                 logger.info("  [crawler] %s", line)
         if proc.returncode == 0:
-            logger.info("✅ Auto-update: crawler finished successfully")
+            logger.info("✅ [Run #%d] Crawler finished successfully", run_num)
+            crawler_ok = True
         else:
-            logger.warning("⚠  Auto-update: crawler exited with code %d", proc.returncode)
+            logger.warning(
+                "⚠  [Run #%d] Crawler exited with code %d", run_num, proc.returncode
+            )
     except Exception as exc:
-        logger.warning("⚠  Auto-update: crawler failed — %s", exc)
+        logger.warning("⚠  [Run #%d] Crawler failed — %s", run_num, exc)
 
     # ── Step 2: Rebuild index ─────────────────────────────────────
-    logger.info("🌲 Auto-update: rebuilding knowledge index …")
+    logger.info("🌲 [Run #%d] Rebuilding knowledge index …", run_num)
+    indexer_ok = False
     try:
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "indexer.py",
-            cwd=str(scraper_dir),
+            cwd=str(_SCRAPER_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
         stdout, _ = await proc.communicate()
         if stdout:
-            for line in stdout.decode(errors="replace").splitlines()[-30:]:
+            for line in stdout.decode(errors="replace").splitlines()[-_MAX_LOG_LINES:]:
                 logger.info("  [indexer] %s", line)
         if proc.returncode == 0:
-            logger.info("✅ Auto-update: index rebuilt — reloading knowledge tree …")
+            logger.info(
+                "✅ [Run #%d] Index rebuilt — reloading knowledge tree …", run_num
+            )
             reload_knowledge_base()
             get_knowledge_tree()
             get_rag_engine()
-            logger.info("✅ Auto-update complete — knowledge base is up to date")
+            logger.info(
+                "✅ [Run #%d] Knowledge base is up to date", run_num
+            )
+            indexer_ok = True
         else:
-            logger.warning("⚠  Auto-update: indexer exited with code %d", proc.returncode)
+            logger.warning(
+                "⚠  [Run #%d] Indexer exited with code %d", run_num, proc.returncode
+            )
     except Exception as exc:
-        logger.warning("⚠  Auto-update: indexer failed — %s", exc)
+        logger.warning("⚠  [Run #%d] Indexer failed — %s", run_num, exc)
+
+    if indexer_ok:
+        scrape_history["last_status"] = "success"
+    elif crawler_ok:
+        scrape_history["last_status"] = "partial"
+    else:
+        scrape_history["last_status"] = "failed"
+
+    logger.info(
+        "📋 [Run #%d] Status: %s | Next run in %.1f h",
+        run_num, scrape_history["last_status"], SCRAPER_INTERVAL_HOURS,
+    )
 
 
-async def _scheduled_kb_updater() -> None:
-    """
-    Infinite background loop that refreshes the knowledge base every
-    KB_UPDATE_INTERVAL_SECONDS (default 3600 = 1 hour).
-
-    The first run happens immediately at startup; subsequent runs are
-    spaced by UPDATE_INTERVAL_SECONDS regardless of how long each run takes.
-    """
-    while True:
-        run_start = asyncio.get_event_loop().time()
-        logger.info(
-            "🔄 Scheduled KB update starting (interval=%ds) …",
-            UPDATE_INTERVAL_SECONDS,
+def _create_scheduler() -> AsyncIOScheduler:
+    """Create and configure an AsyncIOScheduler for background KB updates."""
+    scheduler = AsyncIOScheduler()
+    if SCRAPER_ENABLED:
+        scheduler.add_job(
+            _auto_update_knowledge_base,
+            trigger=IntervalTrigger(hours=SCRAPER_INTERVAL_HOURS),
+            id="kb_update",
+            name="Knowledge Base Auto-Update",
+            replace_existing=True,
+            max_instances=1,
         )
-        await _auto_update_knowledge_base()
-
-        elapsed = asyncio.get_event_loop().time() - run_start
-        sleep_for = max(0.0, UPDATE_INTERVAL_SECONDS - elapsed)
         logger.info(
-            "⏰ Next KB update in %.0f s (≈ %.1f min)",
-            sleep_for,
-            sleep_for / 60,
+            "⏰ Scheduler configured: crawl every %.1f h (max_pages=%d)",
+            SCRAPER_INTERVAL_HOURS, SCRAPER_MAX_PAGES,
         )
-        await asyncio.sleep(sleep_for)
+    else:
+        logger.info("ℹ️  Scraper disabled via SCRAPER_ENABLED=false")
+    return scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Starting IIT Jammu AI Assistant …")
 
-    # Kick off the hourly scheduler in the background so the backend starts immediately.
-    # It runs the crawler+indexer on startup, then repeats every UPDATE_INTERVAL_SECONDS.
-    _update_task = asyncio.create_task(_scheduled_kb_updater())
+    # Start APScheduler for periodic background KB updates
+    scheduler = _create_scheduler()
+    scheduler.start()
+    logger.info("✅ Background scheduler started")
 
+    # Load existing knowledge base immediately (before first crawl finishes)
     try:
         tree = get_knowledge_tree()
         logger.info(f"✅ Knowledge tree: {tree.count_nodes()} nodes")
@@ -152,13 +195,17 @@ async def lifespan(app: FastAPI):
         logger.info("✅ RAG engine ready")
     except Exception as e:
         logger.error(f"⚠  RAG engine init error: {e}")
+
+    # Run first crawl immediately in the background (non-blocking)
+    if SCRAPER_ENABLED:
+        logger.info("🕷️  Starting initial crawl …")
+        asyncio.create_task(_auto_update_knowledge_base())
+
     yield
-    logger.info("🛑 Shutting down — cancelling KB updater …")
-    _update_task.cancel()
-    try:
-        await _update_task
-    except asyncio.CancelledError:
-        logger.info("✅ KB updater cancelled cleanly")
+
+    logger.info("🛑 Shutting down — stopping scheduler …")
+    scheduler.shutdown(wait=False)
+    logger.info("✅ Scheduler stopped")
 
 
 app = FastAPI(
