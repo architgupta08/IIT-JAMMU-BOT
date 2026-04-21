@@ -50,6 +50,9 @@ INDEX_FILE_RESOLVED = _resolve_index_path()
 limiter = Limiter(key_func=get_remote_address)
 
 
+UPDATE_INTERVAL_SECONDS: int = int(os.getenv("KB_UPDATE_INTERVAL_SECONDS", "3600"))  # default: 1 hour
+
+
 async def _auto_update_knowledge_base() -> None:
     """
     Background task: run the web crawler then rebuild the knowledge index.
@@ -102,12 +105,39 @@ async def _auto_update_knowledge_base() -> None:
         logger.warning("⚠  Auto-update: indexer failed — %s", exc)
 
 
+async def _scheduled_kb_updater() -> None:
+    """
+    Infinite background loop that refreshes the knowledge base every
+    KB_UPDATE_INTERVAL_SECONDS (default 3600 = 1 hour).
+
+    The first run happens immediately at startup; subsequent runs are
+    spaced by UPDATE_INTERVAL_SECONDS regardless of how long each run takes.
+    """
+    while True:
+        run_start = asyncio.get_event_loop().time()
+        logger.info(
+            "🔄 Scheduled KB update starting (interval=%ds) …",
+            UPDATE_INTERVAL_SECONDS,
+        )
+        await _auto_update_knowledge_base()
+
+        elapsed = asyncio.get_event_loop().time() - run_start
+        sleep_for = max(0.0, UPDATE_INTERVAL_SECONDS - elapsed)
+        logger.info(
+            "⏰ Next KB update in %.0f s (≈ %.1f min)",
+            sleep_for,
+            sleep_for / 60,
+        )
+        await asyncio.sleep(sleep_for)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Starting IIT Jammu AI Assistant …")
 
-    # Kick off crawler + indexer in the background so the backend starts immediately
-    _update_task = asyncio.create_task(_auto_update_knowledge_base())
+    # Kick off the hourly scheduler in the background so the backend starts immediately.
+    # It runs the crawler+indexer on startup, then repeats every UPDATE_INTERVAL_SECONDS.
+    _update_task = asyncio.create_task(_scheduled_kb_updater())
 
     try:
         tree = get_knowledge_tree()
@@ -123,7 +153,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"⚠  RAG engine init error: {e}")
     yield
-    logger.info("🛑 Shutting down")
+    logger.info("🛑 Shutting down — cancelling KB updater …")
+    _update_task.cancel()
+    try:
+        await _update_task
+    except asyncio.CancelledError:
+        logger.info("✅ KB updater cancelled cleanly")
 
 
 app = FastAPI(
