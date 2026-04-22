@@ -1,0 +1,31 @@
+# Fine-tuning dependencies for IIT Jammu LLM
+# Install with: pip install -r requirements_finetune.txt
+
+# Core ML framework
+torch>=2.0.0
+
+# HuggingFace ecosystem
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+tokenizers>=0.14.0
+
+# Parameter-efficient fine-tuning (LoRA)
+peft>=0.7.0
+
+# Supervised fine-tuning trainer
+trl>=0.7.4
+
+# 4-bit quantization (GPU only; optional but strongly recommended)
+bitsandbytes>=0.41.0
+
+# Progress bars and utilities
+tqdm>=4.65.0
+numpy>=1.24.0
+
+# Evaluation metrics
+evaluate>=0.4.0
+rouge_score>=0.1.2
+
+# Environment / config
+python-dotenv>=1.0.0
