@@ -162,7 +162,7 @@ else
   if [[ "$DEVICE" == "cpu" ]]; then
     warn "Pretraining on CPU may take 6+ hours."
     warn "Consider using --skip-pretrain to go directly to fine-tuning."
-    read -t 10 -p "Continue? [y/N] " REPLY || REPLY="y"
+    read -t 10 -p "Continue? [y/N] " REPLY || REPLY="n"
     if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
       warn "Pretraining skipped by user"
       SKIP_PRETRAIN=true

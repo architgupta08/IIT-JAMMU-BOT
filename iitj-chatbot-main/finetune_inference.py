@@ -16,6 +16,7 @@ USAGE (as a module):
 """
 
 import os
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -119,8 +120,7 @@ class FinetunedModelClient:
         if adapter_cfg.exists():
             from peft import PeftModel
             # Load base model first, then apply adapter
-            import json as _json
-            cfg = _json.loads(adapter_cfg.read_text())
+            cfg = json.loads(adapter_cfg.read_text())
             base_id = cfg.get("base_model_name_or_path", _DEFAULT_HF_MODEL)
             logger.info("Loading LoRA adapter | base_model=%s", base_id)
             base = AutoModelForCausalLM.from_pretrained(base_id, **load_kwargs)

@@ -200,10 +200,13 @@ async def lifespan(app: FastAPI):
     # Initialise the AI engine (Groq or fine-tuned local model)
     if USE_FINETUNED_MODEL:
         try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-            from finetune_inference import get_finetuned_client
+            import importlib.util as _il
+            _finetune_path = Path(__file__).resolve().parent.parent / "finetune_inference.py"
+            _spec = _il.spec_from_file_location("finetune_inference", _finetune_path)
+            _fi_mod = _il.module_from_spec(_spec)
+            _spec.loader.exec_module(_fi_mod)
+            finetuned_client = _fi_mod.get_finetuned_client()
             import rag_engine as _rag
-            finetuned_client = get_finetuned_client()
             # Directly wire the fine-tuned client into the RAG engine singleton
             tree = get_knowledge_tree()
             _rag._engine = _rag.VectorlessRAGEngine(tree, finetuned_client)

@@ -2,8 +2,8 @@
 train_unsupervised.py — Unsupervised Pretraining on IIT Jammu Data
 ==================================================================
 Loads all markdown files from data/processed/ (or data/raw/ as fallback),
-tokenizes with the Mistral-7B tokenizer, and runs masked language modeling
-(MLM) to pretrain a causal language model on IIT Jammu corpus.
+tokenizes using the Mistral-7B tokenizer, and pretrains a causal language
+model (CLM) on the IIT Jammu corpus using next-token prediction.
 
 USAGE:
   python train_unsupervised.py                          # default settings
@@ -177,7 +177,6 @@ def train(args):
     import torch
     from transformers import (
         AutoTokenizer,
-        AutoModelForMaskedLM,
         AutoModelForCausalLM,
         DataCollatorForLanguageModeling,
         TrainingArguments,
