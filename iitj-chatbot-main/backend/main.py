@@ -49,7 +49,14 @@ def _resolve_index_path():
 
 INDEX_FILE_RESOLVED = _resolve_index_path()
 
-# ── Rate limiter ──────────────────────────────────────────────────
+# ── Fine-tuned model toggle ───────────────────────────────────────
+# Set USE_FINETUNED_MODEL=true in .env to switch from Groq to the
+# locally fine-tuned model (models/finetuned_iitj/).
+USE_FINETUNED_MODEL: bool = (
+    os.getenv("USE_FINETUNED_MODEL", "false").lower() == "true"
+)
+
+# Rate limiter ──────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
 
 # ── Scheduler config from environment ────────────────────────────
@@ -190,11 +197,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"⚠  Startup warning: {e}")
 
-    try:
-        get_rag_engine()
-        logger.info("✅ RAG engine ready")
-    except Exception as e:
-        logger.error(f"⚠  RAG engine init error: {e}")
+    # Initialise the AI engine (Groq or fine-tuned local model)
+    if USE_FINETUNED_MODEL:
+        try:
+            import importlib.util as _il
+            _finetune_path = Path(__file__).resolve().parent.parent / "finetune_inference.py"
+            _spec = _il.spec_from_file_location("finetune_inference", _finetune_path)
+            _fi_mod = _il.module_from_spec(_spec)
+            _spec.loader.exec_module(_fi_mod)
+            finetuned_client = _fi_mod.get_finetuned_client()
+            import rag_engine as _rag
+            # Directly wire the fine-tuned client into the RAG engine singleton
+            tree = get_knowledge_tree()
+            _rag._engine = _rag.VectorlessRAGEngine(tree, finetuned_client)
+            logger.info("✅ Fine-tuned model client ready (USE_FINETUNED_MODEL=true)")
+        except Exception as e:
+            logger.error(
+                "⚠  Fine-tuned model init failed (%s) — falling back to Groq", e
+            )
+            try:
+                get_rag_engine()
+                logger.info("✅ RAG engine ready (Groq fallback)")
+            except Exception as e2:
+                logger.error(f"⚠  RAG engine init error: {e2}")
+    else:
+        try:
+            get_rag_engine()
+            logger.info("✅ RAG engine ready")
+        except Exception as e:
+            logger.error(f"⚠  RAG engine init error: {e}")
 
     # Run first crawl immediately in the background (non-blocking)
     if SCRAPER_ENABLED:
@@ -265,6 +296,26 @@ async def index_stats():
         top_level_sections=tree.get_top_level_titles(),
         last_updated=tree.get_last_updated()
     )
+
+
+@app.get("/model/info", tags=["Model"])
+async def model_info():
+    """Return information about the active AI model (Groq API or fine-tuned local model)."""
+    from pathlib import Path as _Path
+    finetuned_path = _Path(__file__).resolve().parent.parent / "models" / "finetuned_iitj"
+    pretrained_path = _Path(__file__).resolve().parent.parent / "models" / "pretrained_iitj"
+    return JSONResponse(content={
+        "active_model": "finetuned_local" if USE_FINETUNED_MODEL else "groq_api",
+        "use_finetuned": USE_FINETUNED_MODEL,
+        "groq_model": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        "finetuned_model_path": str(finetuned_path),
+        "finetuned_model_exists": finetuned_path.exists() and any(finetuned_path.iterdir()),
+        "pretrained_model_exists": pretrained_path.exists() and any(pretrained_path.iterdir()),
+        "switch_instructions": (
+            "To use fine-tuned model: set USE_FINETUNED_MODEL=true in backend/.env and restart. "
+            "To use Groq API: set USE_FINETUNED_MODEL=false (or remove the variable)."
+        ),
+    })
 
 
 @app.get("/suggestions", response_model=SuggestedQuestionsResponse, tags=["Chat"])

@@ -33,3 +33,26 @@ node_modules/
 # Coverage
 .coverage
 htmlcov/
+
+# Large model binary files (use Git LFS or external storage)
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.gguf
+*.ggml
+
+# Training artifacts (generated at runtime)
+iitj-chatbot-main/models/pretrained_iitj/pytorch_model*
+iitj-chatbot-main/models/pretrained_iitj/model*
+iitj-chatbot-main/models/pretrained_iitj/config.json
+iitj-chatbot-main/models/pretrained_iitj/tokenizer*
+iitj-chatbot-main/models/finetuned_iitj/adapter_model*
+iitj-chatbot-main/models/finetuned_iitj/tokenizer*
+iitj-chatbot-main/models/logs/
+
+# Supervised dataset (generated at runtime)
+iitj-chatbot-main/data/supervised_dataset.jsonl
+
+# Crawler log
+iitj-chatbot-main/scraper/crawler.log
