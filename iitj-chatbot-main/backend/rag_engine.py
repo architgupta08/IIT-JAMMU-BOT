@@ -425,7 +425,17 @@ def reload_knowledge_base() -> None:
     """Reset cached singletons so the next call to get_knowledge_tree() / get_rag_engine()
     re-reads the index file from disk.  Call this after the indexer has written a fresh
     iitj_index.json.
+
+    If a fine-tuned engine is already loaded, its client is preserved — only the
+    knowledge tree (index data) is refreshed.  This prevents the crawl cycle from
+    silently replacing the fine-tuned model with the default Groq client.
     """
     global _tree, _engine
+    # Preserve the existing LLM client so a fine-tuned engine survives KB reloads
+    existing_client = _engine.gemini if _engine is not None else None
     _tree = None
     _engine = None
+    # Immediately rebuild with the fresh tree but the same client
+    if existing_client is not None:
+        _tree = IITJKnowledgeTree(INDEX_FILE)
+        _engine = VectorlessRAGEngine(_tree, existing_client)
