@@ -163,18 +163,16 @@ def build_footer(
 
     lines = ["\n\n---"]
 
-    # Sources
+    # Sources — deduplicate by path and list unique titles
     if sources:
+        seen_paths: set = set()
         cited = []
-        seen_paths = set()
         for s in sources[:3]:  # limit to 3 citations
             if s.path not in seen_paths:
-                cited.append(f"• {s.title}")
+                cited.append(s.title)
                 seen_paths.add(s.path)
         if cited:
-            lines.append("📖 **Sources:** " + " | ".join(
-                f"`{s.title}`" for s in sources[:3]
-            ))
+            lines.append("📖 **Sources:** " + " | ".join(f"`{t}`" for t in cited))
 
     # Confidence badge
     if confidence >= 0.75:

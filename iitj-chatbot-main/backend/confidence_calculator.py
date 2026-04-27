@@ -37,7 +37,13 @@ _STOP_WORDS = {
 
 
 def _tokenize(text: str) -> set:
-    """Tokenize text into lowercase words, removing stop words."""
+    """Tokenize text into lowercase words, removing stop words.
+
+    The regex ``[\\w₹]+`` intentionally includes the Indian Rupee symbol (₹)
+    so that fee amounts like ``₹2,00,000`` are preserved as a single token
+    rather than being split at the symbol boundary.  Other currency symbols
+    (e.g. $, €) are not relevant to the IIT Jammu domain and can be ignored.
+    """
     return {
         w.lower()
         for w in re.findall(r"[\w₹]+", text)
