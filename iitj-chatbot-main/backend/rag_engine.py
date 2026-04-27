@@ -35,6 +35,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from pathlib import Path
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
+from confidence_calculator import calculate_confidence
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -336,18 +337,8 @@ class VectorlessRAGEngine:
 
         # ── Guard: off-topic queries ──────────────────────────────
         if _is_off_topic(query):
-            lang_map = {
-                "hi": "मैं केवल IIT Jammu से संबंधित प्रश्नों का उत्तर दे सकता हूँ। कृपया IIT Jammu के बारे में पूछें।",
-                "de": "Ich kann nur Fragen zu IIT Jammu beantworten. Bitte fragen Sie über IIT Jammu.",
-                "fr": "Je ne peux répondre qu'aux questions concernant IIT Jammu.",
-                "es": "Solo puedo responder preguntas sobre IIT Jammu.",
-            }
-            off_msg = lang_map.get(
-                target_language,
-                "I can only answer questions related to IIT Jammu — admissions, fees, programs, "
-                "faculty, research, campus, placements, and other institute-related topics. "
-                "Please ask me something about IIT Jammu!"
-            )
+            from prompts import get_off_topic_response
+            off_msg = get_off_topic_response(target_language)
             return RAGResult(
                 answer=off_msg,
                 sources=[],
@@ -373,15 +364,18 @@ class VectorlessRAGEngine:
                 context=context,
                 target_language=target_language,
             )
-            confidence = 0.85 if top_nodes else 0.3
         except Exception as e:
             logger.error(f"Gemini formulate_answer error: {type(e).__name__}: {e}")
             raise   # re-raise so /debug/chat shows the real error
 
-        # Score of top hit as a proxy for confidence
-        if top_nodes:
-            hit_score = self.tree.search(query, top_k=1)
-            confidence = min(0.95, 0.5 + 0.05 * len(hit_score))
+        # ── Step 3: Real confidence calculation ───────────────────
+        last_updated = self.tree.get_last_updated()
+        confidence = calculate_confidence(
+            query=query,
+            nodes=top_nodes,
+            answer=answer_text,
+            last_updated=last_updated,
+        )
 
         result = RAGResult(
             answer=answer_text,

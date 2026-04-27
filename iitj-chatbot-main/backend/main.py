@@ -21,10 +21,13 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from models import (
     ChatRequest, ChatResponse, HealthResponse,
-    IndexStatsResponse, SuggestedQuestionsResponse, SourceNode
+    IndexStatsResponse, SuggestedQuestionsResponse, SourceNode,
+    ConfidenceMeta,
 )
 from rag_engine import get_rag_engine, get_knowledge_tree, reload_knowledge_base
 from language_handler import LanguageContext
+from answer_formatter import format_answer
+from response_enhancer import get_related_suggestions, build_footer
 
 load_dotenv()
 
@@ -340,6 +343,8 @@ async def chat(request: Request, body: ChatRequest):
     lang_ctx = LanguageContext(body.message, forced_lang=body.language)
     logger.info(f"[{session_id}] '{body.message[:60]}' | lang={lang_ctx.detected_lang}")
 
+    t_start = time.time()
+
     try:
         engine = get_rag_engine()
         result = await engine.answer(body.message, target_language=lang_ctx.detected_lang)
@@ -350,12 +355,52 @@ async def chat(request: Request, body: ChatRequest):
             detail=f"AI engine error: {type(e).__name__}: {e}"
         )
 
+    response_time_ms = (time.time() - t_start) * 1000
+
+    # Format the raw answer into a polished response
+    formatted_answer = format_answer(result.answer, language=lang_ctx.detected_lang)
+
+    # Build source nodes for the response
+    source_nodes = [
+        SourceNode(title=s.title, path=s.path, node_id=s.node_id)
+        for s in result.sources
+    ]
+
+    # Add a professional footer with citations and confidence badge
+    footer = build_footer(
+        sources=source_nodes,
+        confidence=result.confidence,
+        response_time_ms=response_time_ms,
+    )
+    if footer:
+        formatted_answer = formatted_answer + footer
+
+    # Related follow-up suggestions
+    suggestions = get_related_suggestions(body.message, result.answer)
+
+    # Build confidence metadata
+    if result.confidence >= 0.75:
+        conf_label = "high"
+    elif result.confidence >= 0.50:
+        conf_label = "medium"
+    else:
+        conf_label = "low"
+
+    confidence_meta = ConfidenceMeta(
+        score=result.confidence,
+        label=conf_label,
+        source_count=len(result.sources),
+    )
+
     return ChatResponse(
-        answer=result.answer,
+        answer=formatted_answer,
         detected_language=lang_ctx.detected_lang,
-        sources=[SourceNode(title=s.title, path=s.path, node_id=s.node_id) for s in result.sources],
+        sources=source_nodes,
         confidence=round(result.confidence, 2),
-        session_id=session_id
+        confidence_meta=confidence_meta,
+        suggestions=suggestions,
+        session_id=session_id,
+        response_time_ms=round(response_time_ms, 1),
     )
 
 

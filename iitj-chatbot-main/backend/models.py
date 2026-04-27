@@ -27,12 +27,29 @@ class SourceNode(BaseModel):
     node_id: str
 
 
+class ConfidenceMeta(BaseModel):
+    """Breakdown of the confidence score components."""
+    score: float = Field(..., ge=0.0, le=1.0, description="Overall confidence score")
+    label: str = Field(..., description="Human-readable label: high / medium / low")
+    source_count: int = Field(..., description="Number of knowledge-base nodes used")
+
+
 class ChatResponse(BaseModel):
     answer: str
     detected_language: str
     sources: List[SourceNode] = []
     confidence: float = Field(..., ge=0.0, le=1.0)
+    confidence_meta: Optional[ConfidenceMeta] = Field(
+        None, description="Detailed confidence breakdown"
+    )
+    suggestions: List[str] = Field(
+        default_factory=list,
+        description="Follow-up question suggestions related to the answer",
+    )
     session_id: Optional[str] = None
+    response_time_ms: Optional[float] = Field(
+        None, description="Server-side response time in milliseconds"
+    )
 
 
 class HealthResponse(BaseModel):
