@@ -678,7 +678,31 @@ async def crawl_async(
                 if pdfs:
                     PDF_LIST_FILE.write_text("\n".join(sorted(pdfs)), encoding="utf-8")
 
-            # Polite delay with jitter
+            # ── Incremental index update every 25 pages SAVED ──────
+            if crawled > 0 and crawled % 15 == 0:
+                logger.info("🌲 [Page %d] Running incremental index update...", crawled)
+                import subprocess as _sp
+                result = _sp.run(
+                    [sys.executable, "indexer.py", "--merge"],
+                    cwd=str(Path(__file__).resolve().parent),
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0:
+                    logger.info("✅ Index updated — knowledge base current to page %d", crawled)
+                else:
+                    logger.warning("⚠  Index update failed at page %d: %s", crawled, result.stderr[:200])
+             
+            # Extract any new PDFs every 25 pages too
+            if crawled > 0 and crawled % 15 == 0:
+                 if pdfs:
+                     PDF_LIST_FILE.write_text("\n".join(sorted(pdfs)), encoding="utf-8")
+                     logger.info("📄 Running incremental PDF extraction...")
+                     _sp.run(
+                    [sys.executable, "pdf_extractor.py"],
+                    cwd=str(Path(__file__).resolve().parent),
+                     capture_output=True, text=True,
+                     )
+                         # Polite delay with jitter
             await asyncio.sleep(DELAY * (0.6 + random.random() * 0.8))
 
         await browser.close()

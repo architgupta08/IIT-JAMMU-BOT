@@ -78,12 +78,32 @@ async def run_crawl_and_index() -> None:
     except Exception as exc:
         logger.warning("⚠  [Run #%d] Crawler failed — %s", run_num, exc)
 
-    # ── Step 2: Rebuild index ─────────────────────────────────────────────────
+    # ── Step 2: PDF extraction ────────────────────────────────────────────────
+    logger.info("📄 [Run #%d] Extracting PDFs …", run_num)
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "pdf_extractor.py",
+            cwd=str(SCRAPER_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        if stdout:
+            for line in stdout.decode(errors="replace").splitlines()[-_MAX_LOG_LINES:]:
+                logger.info("  [pdf] %s", line)
+        if proc.returncode == 0:
+            logger.info("✅ [Run #%d] PDF extraction finished", run_num)
+        else:
+            logger.warning("⚠  [Run #%d] PDF extractor exited with code %d", run_num, proc.returncode)
+    except Exception as exc:
+        logger.warning("⚠  [Run #%d] PDF extraction failed — %s", run_num, exc)
+
+    # ── Step 3: Rebuild index ─────────────────────────────────────────────────
     logger.info("🌲 [Run #%d] Rebuilding knowledge index …", run_num)
     indexer_ok = False
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, "indexer.py",
+            sys.executable, "indexer.py", "--merge",
             cwd=str(SCRAPER_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
